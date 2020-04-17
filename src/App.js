@@ -1,9 +1,7 @@
 /* eslint-disable no-extend-native */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.scss';
 
-// Із масиву повертає масив масивів з певною кількісю елементів
-// Наприклад [1, 2, 3, 4, 5, 6, 7, 8, 9].chunk(3) = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 Object.defineProperty(Array.prototype, 'chunk', {
   value: function (chunkSize) {
     var temporal = [];
@@ -16,58 +14,85 @@ Object.defineProperty(Array.prototype, 'chunk', {
   },
 });
 
-// Приймає масив масивів (матрицю) та свапає вісь х та у
-// Наприклад, transpone(  [[1, 2, 3],          [[1, 4, 7],
-//                         [4, 5, 6],     =     [2, 5, 8],
-//                         [7, 8, 9]] )         [3, 6, 9]]
 const transpose = (matrix) =>
   matrix.reduce(($, row) => row.map((_, i) => [...($[i] || []), row[i]]), []);
 
-// Приймає масив масивів та поєдує усі елементи у стрічку
-// Наприклад joinGrid( [['м', 'а', 'с'], ['и', 'в']] ) = 'масив'
 const joinGrid = (grid) => {
   const rows = [];
   grid.forEach((array) => rows.push(array.join('')));
   return rows.join('');
 };
 
+const encryptGridToString = (grid) => {};
+
+const makeGrid = (rows, columns, symbol = '') =>
+  new Array(rows * columns).fill(symbol).chunk(columns);
+
 function App() {
-  // Кількість стовпців (по дефолту 4)
   const [columns, setColumns] = useState(4);
+  const [rows, setRows] = useState(3);
 
-  // Таблиця яка зберігає сивмоли тексту, масив масивів. Ширина таблиці (довжина рядків) задається кількісю стовпців
-  // Якщо з'єднати усі символи через joinGrid(), можна отримати вихідний розшифрований текст
-  const [textGrid, setTextGrid] = useState([new Array(columns)]);
+  const initialTextGrid = makeGrid(rows, columns);
+  const [textGrid, setTextGrid] = useState(initialTextGrid);
 
-  // Приймає таблицю символів тексту, повертає зашифрований текст
-  const encryptGridToString = (grid) => {
-    return joinGrid(transpose(grid));
+  const initialColumnsOrder = [...new Array(columns).keys()];
+  const [columnsOrder, setColumnsOrder] = useState(initialColumnsOrder);
+
+  const initialRowsOrder = [...new Array(rows).keys()];
+  const [rowsOrder, setRowsOrder] = useState(initialRowsOrder);
+
+  useEffect(() => {
+    setTextGrid(makeGrid(rows, columns));
+    setColumnsOrder([...new Array(columns).keys()]);
+    setRowsOrder([...new Array(rows).keys()]);
+  }, [columns, rows]);
+
+  useEffect(() => {
+    setTextGrid(makeGrid(rows, columns));
+  }, [columnsOrder, rowsOrder]);
+
+  const sourceStringToEncryptedGrid = (value) => {
+    let tempGrid = textGrid;
+
+    const textArray = value.split('').chunk(columns);
+
+    for (let row = 0; row < tempGrid.length; row++) {
+      for (let column = 0; column < tempGrid[row].length; column++) {
+        if (textArray[row]) {
+          tempGrid[row][column] = textArray[row][column] || '';
+        } else {
+          tempGrid[row] = new Array(columns).fill('');
+        }
+      }
+    }
+
+    let tempEncryptedGrid = makeGrid(rows, columns);
+
+    for (let i = 0; i < rowsOrder.length; i++) {
+      tempEncryptedGrid[rowsOrder[i]] = tempGrid[i];
+    }
+    return tempEncryptedGrid;
   };
 
-  // Зашифровує текст
-  // Встановлює textGrid як масив масивів з шириною columns при вводі тексту
-  // Якщо символів не достатньо для повної таблиці, встановлює на недостаючі місця пусту стрічку
+  const getEncryptedString = () => {
+    let str = '';
+    for (let column = 0; column < columnsOrder.length; column++) {
+      for (let row = 0; row < rows; row++) str += textGrid[row][column];
+    }
+    return str;
+  };
+
   const handleDecryptInput = ({ target: { value } }) => {
-    const array = value.split('').chunk(columns);
-    if (array && array[0]) {
-      while (array[array.length - 1].length < columns)
-        array[array.length - 1].push('');
-    }
-    setTextGrid(array);
+    if (value > rows * columns) return;
+
+    const encryptedGrid = sourceStringToEncryptedGrid(value);
+
+    setTextGrid([...encryptedGrid]);
   };
 
-  // Розшифровує текст
-  // !Працює тільки з правельними вхідними даними, усі клітинки мали бути заповненими при створенні зашифрованого тексту!
-  // Розраховує необхідну кількість рядків і створює масив масивів
-  // Свапає х та у через transpose і результат записує в textGrid (тобто в таблицю з розшифрованим текстом)
-  const handleEncryptInput = ({ target: { value } }) => {
-    const array = value.split('').chunk(Math.ceil(value.length / columns));
-    if (array && array[0]) {
-      while (array[array.length - 1].length < Math.ceil(value.length / columns))
-        array[array.length - 1].push('');
-    }
-    setTextGrid(transpose(array));
-  };
+  const handleEncryptInput = ({ target: { value } }) => {};
+
+  const stringToArray = (s) => s.split(',').map((v) => parseInt(v));
 
   return (
     <div className='App'>
@@ -76,8 +101,40 @@ function App() {
           <span>Кількість стовпців</span>
           <input
             type='text'
-            onChange={(e) => setColumns(parseInt(e.target.value) || columns)}
+            onChange={({ target: { value } }) =>
+              setColumns(parseInt(value) || columns)
+            }
             value={columns}
+          />
+        </div>
+        <div className='input'>
+          <span>Порядок стовпців</span>
+          <input
+            type='text'
+            onChange={({ target: { value } }) =>
+              setColumnsOrder(stringToArray(value) || columnsOrder)
+            }
+            value={columnsOrder}
+          />
+        </div>
+        <div className='input'>
+          <span>Кількість рядків</span>
+          <input
+            type='text'
+            onChange={({ target: { value } }) =>
+              setRows(parseInt(value) || rows)
+            }
+            value={rows}
+          />
+        </div>
+        <div className='input'>
+          <span>Порядок рядків</span>
+          <input
+            type='text'
+            onChange={({ target: { value } }) =>
+              setRowsOrder(stringToArray(value) || columnsOrder)
+            }
+            value={rowsOrder}
           />
         </div>
         <div className='input'>
@@ -85,7 +142,7 @@ function App() {
           <input
             type='text'
             onChange={handleDecryptInput}
-            value={joinGrid(textGrid)}
+            // value={joinGrid(textGrid)}
           />
         </div>
         <div className='input'>
@@ -93,21 +150,13 @@ function App() {
           <input
             type='text'
             onChange={handleEncryptInput}
-            value={encryptGridToString(textGrid)}
+            value={getEncryptedString()}
           />
         </div>
       </div>
       {textGrid.some((e) => e.some((c) => c === '')) ? (
         <div>
           <i>Переконайтесь що усі клітинки заповнені</i>
-          <div>&nbsp;</div>
-        </div>
-      ) : null}
-      {textGrid.some((e) => e.length !== columns) ? (
-        <div>
-          <i>
-            Переконайтесь кількість стовпців дорівнює кількість зазначених вище
-          </i>
           <div>&nbsp;</div>
         </div>
       ) : null}

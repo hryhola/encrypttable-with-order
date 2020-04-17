@@ -1,6 +1,6 @@
 {
-  "homepage": "https://vladgrygola.github.io/encrypttable",
-  "name": "lab2",
+  "homepage": "https://vladgrygola.github.io/encrypttable-with-order",
+  "name": "encrypttable-with-order",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
